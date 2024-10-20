@@ -1,119 +1,86 @@
 package com.project.pdf_generation.service;
 
-import com.itextpdf.text.Document;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.Paragraph;
-import com.itextpdf.text.pdf.PdfPCell;
-import com.itextpdf.text.pdf.PdfPTable;
-import com.itextpdf.text.pdf.PdfWriter;
 import com.project.pdf_generation.model.InvoiceDetails;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.security.NoSuchAlgorithmException;
-import java.util.Base64;
 
 @Service
+@RequiredArgsConstructor
 public class PDFService {
     @Value("${pdf.storage.path}")
     private String storagePath;
 
-    public byte[] generatePDF(InvoiceDetails invoiceDetails) throws IOException, DocumentException, NoSuchAlgorithmException {
+    private final CreatePDFService createPDFService;
+
+    /*
+    Method to generate hash code for json data
+     */
+    public String generateHash(InvoiceDetails invoiceDetails) throws NoSuchAlgorithmException, JsonProcessingException {
+        ObjectMapper objectMapper=new ObjectMapper();
+        String jsonString=objectMapper.writeValueAsString(invoiceDetails);
+        MessageDigest messageDigest=MessageDigest.getInstance("SHA-256");
+        byte[] hash=messageDigest.digest(jsonString.getBytes());
+        StringBuilder hexString=new StringBuilder();
+        for(byte b: hash){
+            hexString.append(String.format("%02x", b));
+        }
+        return hexString.toString();
+    }
+
+    /*
+    To check weather pdf already exists in local storage.
+     */
+    public boolean isPDFExists(String hash) {
+        Path path=Paths.get(storagePath + hash + ".pdf");
+        return Files.exists(path);
+    }
+
+    /*
+    To generate PDF based on json data.
+     */
+    public byte[] generatePDF(InvoiceDetails invoiceDetails) throws NoSuchAlgorithmException, IOException, DocumentException {
         String hash=generateHash(invoiceDetails);
         String filePath= storagePath + File.separator + hash +".pdf";
         // Check weather pdf already exists
-        File file=new File(filePath);
-        File pdfDirectory = new File(storagePath);
-        if (!pdfDirectory.exists()) {
-            pdfDirectory.mkdirs();
-        }
         Path path = Paths.get(filePath);
-        if(file.exists()){
+        if(isPDFExists(hash)){
             return Files.readAllBytes(path);
         }
-        createNewPDF(invoiceDetails,filePath);
+        createPDFService.createNewPDF(invoiceDetails,filePath);
         return Files.readAllBytes(path);
     }
 
-    private void createNewPDF(InvoiceDetails invoiceDetails, String filePath) throws FileNotFoundException, DocumentException {
-        Document document = new Document();
-        PdfWriter.getInstance(document,new FileOutputStream(filePath));
-        document.open();
-        document.addTitle("Invoice Details.");
-        document.add(new Paragraph(" "));
-        PdfPTable table = new PdfPTable(4);
-        table.setWidthPercentage(100);
-        table.setPaddingTop(10);
-
-        PdfPCell cell1 = new PdfPCell();
-        cell1.setRowspan(6);
-        cell1.setColspan(2);
-        cell1.setPadding(10);
-        Paragraph paragraph1 = new Paragraph();
-        paragraph1.add("Seller: \n");
-        paragraph1.add("Seller: "+invoiceDetails.getSeller()+"\n");
-        paragraph1.add("SellerGSTIN: "+invoiceDetails.getSellerGSTIN()+"\n");
-        paragraph1.add("Seller Address: "+invoiceDetails.getSellerAddress()+"\n");
-        cell1.setPhrase(paragraph1);
-        table.addCell(cell1);
-
-        PdfPCell cell2=new PdfPCell();
-        cell2.setRowspan(6);
-        cell2.setColspan(2);
-        cell2.setPadding(10);
-        Paragraph paragraph2 = new Paragraph();
-        paragraph2.add("Buyer: \n");
-        paragraph2.add("Buyer"+invoiceDetails.getBuyer()+"\n");
-        paragraph2.add("BuyerGSTIN: "+invoiceDetails.getBuyerGSTIN()+"\n");
-        paragraph2.add("Buyer Address: "+invoiceDetails.getBuyerAddress()+"\n");
-        cell2.setPhrase(paragraph2);
-        table.addCell(cell2);
-
-        PdfPCell itemName=new PdfPCell(new Paragraph("Item"));
-        itemName.setPadding(10f);
-        table.addCell(itemName);
-
-        PdfPCell itemQuantity=new PdfPCell(new Paragraph("Quantity"));
-        itemQuantity.setPadding(10f);
-        table.addCell(itemQuantity);
-
-        PdfPCell itemRate=new PdfPCell(new Paragraph("Rate"));
-        itemRate.setPadding(10f);
-        table.addCell(itemRate);
-
-        PdfPCell itemAmount=new PdfPCell(new Paragraph("Amount"));
-        itemAmount.setPadding(10f);
-        table.addCell(itemAmount);
-
-        for(InvoiceDetails.Items item: invoiceDetails.getItems()){
-            PdfPCell itemNameCell=new PdfPCell(new Paragraph(item.getName()));
-            itemNameCell.setPadding(10f);
-            table.addCell(itemNameCell);
-
-            PdfPCell itemQuantityCell=new PdfPCell(new Paragraph(item.getQuantity()));
-            itemQuantityCell.setPadding(10f);
-            table.addCell(itemQuantityCell);
-
-            PdfPCell itemRateCell=new PdfPCell(new Paragraph(String.valueOf(item.getRate())));
-            itemRateCell.setPadding(10f);
-            table.addCell(itemRateCell);
-
-            PdfPCell itemAmountCell=new PdfPCell(new Paragraph(String.valueOf(item.getAmount())));
-            itemAmountCell.setPadding(10f);
-            table.addCell(itemAmountCell);
+    /*
+    To save pdf file in local storage.
+     */
+    public void savePDF(String hash, byte[] pdfBytes) {
+        String filePath = storagePath + File.separator + hash + ".pdf";
+        try (FileOutputStream fos = new FileOutputStream(filePath)) {
+            fos.write(pdfBytes);
+        }catch (Exception e) {
+            throw new RuntimeException("Failed to save PDF", e);
         }
-        document.add(table);
-        document.close();
     }
 
-    private String generateHash(InvoiceDetails invoiceDetails) throws NoSuchAlgorithmException {
-        MessageDigest messageDigest=MessageDigest.getInstance("SHA-256");
-        byte[] hash=messageDigest.digest(invoiceDetails.toString().getBytes(StandardCharsets.UTF_8));
-        return Base64.getUrlEncoder().encodeToString(hash);
+    /*
+    To get pdf based on hashcode.
+     */
+    public byte[] getExistingPDF(String hash) throws IOException {
+        Path path=Paths.get(storagePath + hash + ".pdf");
+        if (Files.exists(path)) {
+            return Files.readAllBytes(path);
+        } else {
+            throw new FileNotFoundException("PDF not found at: " + path.toString());
+        }
     }
 }
