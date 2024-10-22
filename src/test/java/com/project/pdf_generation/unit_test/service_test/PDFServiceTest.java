@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.*;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -182,4 +183,49 @@ class PDFServiceTest {
             assertEquals("PDF not found at: " + path, thrown.getMessage());
         }
     }
+
+    @Test
+    void savePDF_shouldSaveFileSuccessfully() throws IOException {
+        // Arrange
+        String hash = "testHash";
+        byte[] pdfBytes = new byte[0];
+        String filePath = STORAGE_PATH + File.separator + hash + ".pdf";
+
+        // Act : call the service method
+        pdfService.savePDF(hash, pdfBytes);
+
+        // Assert
+        File savedFile = new File(filePath);
+        assertTrue(savedFile.exists());
+
+        // Optionally verify that the file contains the correct content (extra step)
+        byte[] savedBytes = Files.readAllBytes(savedFile.toPath());
+        assertArrayEquals(pdfBytes, savedBytes);
+
+        // Clean up
+        savedFile.delete();
+    }
+
+
+    @Test
+    void savePDF_ExceptionTest() throws IOException {
+        // Arrange
+        String hash = "testHash";
+        byte[] pdfBytes = "Sample PDF content".getBytes();
+        String filePath = STORAGE_PATH + File.separator + hash + ".pdf"; // Exact file path
+
+        FileOutputStream mockFileOutputStream = mock(FileOutputStream.class);
+        doThrow(new IOException("Mocked exception")).when(mockFileOutputStream).write(any(byte[].class));
+
+        // Mock FileOutputStream to throw an IOException when creating the file
+        try (MockedConstruction<FileOutputStream> mockedConstruction = mockConstruction(FileOutputStream.class, (mock, context) -> {
+            // When write() is called on the mock, throw an IOException
+            doThrow(new IOException("Mocked exception")).when(mock).write(any(byte[].class));
+        })) {
+            // Act & Assert
+            IOException thrown = assertThrows(IOException.class, () -> pdfService.savePDF(hash, pdfBytes));
+            assertTrue(thrown.getMessage().contains("Failed to save PDF"), "Exception message should indicate a failure");
+        }
+    }
+
 }
