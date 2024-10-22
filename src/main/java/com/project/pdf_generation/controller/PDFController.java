@@ -22,11 +22,11 @@ public class PDFController {
             HttpHeaders headers=new HttpHeaders();
             return ResponseEntity.status(HttpStatus.FOUND)
                     .headers(headers)
-                    .body("PDF Exists..."+hash);
+                    .body("PDF Exists. Here is the File Name: "+hash);
         }
         byte[] pdfBytes=pdfService.generatePDF(invoiceDetails);
         pdfService.savePDF(hash,pdfBytes);
-        return ResponseEntity.status(HttpStatus.OK).body("PDF Generated..."+hash);
+        return ResponseEntity.status(HttpStatus.OK).body("PDF Generated. Here is the File name: "+hash);
     }
 
     @GetMapping("/download/{hash}")

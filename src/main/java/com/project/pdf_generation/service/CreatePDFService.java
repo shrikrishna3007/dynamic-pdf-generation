@@ -7,13 +7,14 @@ import com.itextpdf.text.pdf.PdfPCell;
 import com.itextpdf.text.pdf.PdfPTable;
 import com.itextpdf.text.pdf.PdfWriter;
 import com.project.pdf_generation.model.InvoiceDetails;
+import com.project.pdf_generation.model.Items;
 import org.springframework.stereotype.Service;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 
 @Service
 public class CreatePDFService {
-    void createNewPDF(InvoiceDetails invoiceDetails, String filePath) throws FileNotFoundException, DocumentException {
+    public void createNewPDF(InvoiceDetails invoiceDetails, String filePath) throws FileNotFoundException, DocumentException {
         Document document = new Document();
         PdfWriter.getInstance(document,new FileOutputStream(filePath));
         document.open();
@@ -63,20 +64,20 @@ public class CreatePDFService {
         itemAmount.setPadding(10f);
         table.addCell(itemAmount);
 
-        for(InvoiceDetails.Items item: invoiceDetails.getItems()){
-            PdfPCell itemNameCell=new PdfPCell(new Paragraph(item.getName()));
+        for(Items items:invoiceDetails.getItems()){
+            PdfPCell itemNameCell=new PdfPCell(new Paragraph(items.getName()));
             itemNameCell.setPadding(10f);
             table.addCell(itemNameCell);
 
-            PdfPCell itemQuantityCell=new PdfPCell(new Paragraph(item.getQuantity()));
+            PdfPCell itemQuantityCell=new PdfPCell(new Paragraph(items.getQuantity()));
             itemQuantityCell.setPadding(10f);
             table.addCell(itemQuantityCell);
 
-            PdfPCell itemRateCell=new PdfPCell(new Paragraph(String.valueOf(item.getRate())));
+            PdfPCell itemRateCell=new PdfPCell(new Paragraph(String.valueOf(items.getRate())));
             itemRateCell.setPadding(10f);
             table.addCell(itemRateCell);
 
-            PdfPCell itemAmountCell=new PdfPCell(new Paragraph(String.valueOf(item.getAmount())));
+            PdfPCell itemAmountCell=new PdfPCell(new Paragraph(String.valueOf(items.getAmount())));
             itemAmountCell.setPadding(10f);
             table.addCell(itemAmountCell);
         }

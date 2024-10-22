@@ -18,7 +18,7 @@ import java.security.NoSuchAlgorithmException;
 @RequiredArgsConstructor
 public class PDFService {
     @Value("${pdf.storage.path}")
-    private String storagePath;
+    public String storagePath;
 
     private final CreatePDFService createPDFService;
 
@@ -41,7 +41,7 @@ public class PDFService {
     To check weather pdf already exists in local storage.
      */
     public boolean isPDFExists(String hash) {
-        Path path=Paths.get(storagePath + hash + ".pdf");
+        Path path=Paths.get(storagePath, hash + ".pdf");
         return Files.exists(path);
     }
 
@@ -63,12 +63,12 @@ public class PDFService {
     /*
     To save pdf file in local storage.
      */
-    public void savePDF(String hash, byte[] pdfBytes) {
+    public void savePDF(String hash, byte[] pdfBytes) throws IOException {
         String filePath = storagePath + File.separator + hash + ".pdf";
         try (FileOutputStream fos = new FileOutputStream(filePath)) {
             fos.write(pdfBytes);
         }catch (Exception e) {
-            throw new RuntimeException("Failed to save PDF", e);
+            throw new IOException("Failed to save PDF", e);
         }
     }
 
@@ -80,7 +80,7 @@ public class PDFService {
         if (Files.exists(path)) {
             return Files.readAllBytes(path);
         } else {
-            throw new FileNotFoundException("PDF not found at: " + path.toString());
+            throw new FileNotFoundException("PDF not found at: " + path);
         }
     }
 }
